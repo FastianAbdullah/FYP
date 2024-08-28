@@ -86,12 +86,13 @@ def main():
             auth_url = get_authorization_url()
             st.write("Click the button below to connect with LinkedIn")
             if st.button("Connect with LinkedIn"):
-                # Use JavaScript to redirect to the LinkedIn authorization URL
-                st.components.v1.html(f"""
+            # Use JavaScript to redirect to auth_url
+                js = f"""
                     <script>
-                        window.location.href = '{auth_url}';
+                        window.location.href = "{auth_url}";
                     </script>
-                """, height=0)
+                """
+                st.markdown(js, unsafe_allow_html=True)
         else:
             code = st.query_params["code"]
             st.session_state.access_token = get_access_token(code)
