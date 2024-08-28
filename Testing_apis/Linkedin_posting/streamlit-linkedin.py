@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as cp
 import requests
 from urllib.parse import urlencode
 import webbrowser
@@ -87,12 +86,7 @@ def main():
             auth_url = get_authorization_url()
             st.write("Click the button below to connect with LinkedIn")
             if st.button("Connect with LinkedIn"):
-                # Use JavaScript to redirect to the LinkedIn authorization URL
-                cp.html(f"""
-                    <script>
-                        window.location.href = '{auth_url}';
-                    </script>
-                """, height=0)
+                st.markdown(auth_url)
         else:
             code = st.query_params["code"]
             st.session_state.access_token = get_access_token(code)
