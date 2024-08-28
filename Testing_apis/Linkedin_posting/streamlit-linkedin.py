@@ -86,7 +86,29 @@ def main():
             auth_url = get_authorization_url()
             st.write("Click the button below to connect with LinkedIn")
             if st.button("Connect with LinkedIn"):
-                webbrowser.open_new_tab(url=auth_url)
+                st.markdown(
+                    f"""
+                    <a href="{auth_url}" target="_self">
+                        <button style="
+                            background-color: #0077B5;
+                            border: none;
+                            color: white;
+                            padding: 15px 32px;
+                            text-align: center;
+                            text-decoration: none;
+                            display: inline-block;
+                            font-size: 16px;
+                            margin: 4px 2px;
+                            cursor: pointer;
+                            border-radius: 8px;
+                        ">
+                            Connect with LinkedIn
+                        </button>
+                    </a>
+                    """,
+                    unsafe_allow_html=True
+                )
+                # webbrowser.open_new_tab(url=auth_url)
                 # st.markdown(auth_url)
         else:
             code = st.query_params["code"]
