@@ -1,13 +1,13 @@
 import streamlit as st
 import requests
 from urllib.parse import urlencode
-import webbrowser,os
-from dotenv import load_dotenv
+import webbrowser
+# from dotenv import load_dotenv
 
-load_dotenv()
+# load_dotenv()
 # LinkedIn API configuration
-CLIENT_ID = os.getenv("LK_CLIENT_ID")
-CLIENT_SECRET = os.getenv("LK_CLIENT_SECRET")
+CLIENT_ID = st.secrets["LK_CLIENT_ID"]
+CLIENT_SECRET = st.secrets["LK_CLIENT_SECRET"]
 REDIRECT_URI = "http://localhost:8501/"  # Streamlit default local URL
 
 # LinkedIn API endpoints
