@@ -88,7 +88,7 @@ def main():
             if st.button("Connect with LinkedIn"):
                 st.markdown(
                     f"""
-                    <a href="{auth_url}" target="_self">
+                    <a href="{auth_url}" target="_blank">
                         <button style="
                             background-color: #0077B5;
                             border: none;
