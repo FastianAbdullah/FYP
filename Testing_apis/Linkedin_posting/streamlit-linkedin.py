@@ -8,7 +8,7 @@ import webbrowser
 # LinkedIn API configuration
 CLIENT_ID = st.secrets["LK_CLIENT_ID"]
 CLIENT_SECRET = st.secrets["LK_CLIENT_SECRET"]
-REDIRECT_URI = "http://localhost:8501/"  # Streamlit default local URL
+REDIRECT_URI = "https://linkedin-autoposting.streamlit.app/"  # Streamlit default local URL
 
 # LinkedIn API endpoints
 AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
