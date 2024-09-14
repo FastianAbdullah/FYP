@@ -4,3 +4,5 @@ huggingface_hub
 torch
 cuda
 transformers
+bitsandbytes
+groq
