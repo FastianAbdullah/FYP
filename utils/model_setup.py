@@ -1,9 +1,16 @@
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-import huggingface_hub
-from accelerate import init_empty_weights, load_checkpoint_and_dispatch
-import os
+import torch,huggingface_hub,os
 from dotenv import load_dotenv
+
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM, 
+    BitsAndBytesConfig
+)
+
+from accelerate import (
+    init_empty_weights,
+    load_checkpoint_and_dispatch
+)
 
 class ModelSetup:
     def __init__(self, model_id, access_token):

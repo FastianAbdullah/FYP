@@ -151,7 +151,7 @@ class GuardRail:
 if __name__ == "__main__":
     #while running model locally, use GPU having Dedicated vram 6gb or above.
     #causing errors on cpu running for now, use run_locally as False for alternative.
-    guard = GuardRail(model_name="meta-llama/LlamaGuard-7b",run_model_locally=False)
+    guard = GuardRail(model_name="llama-guard-3-8b",run_model_locally=False)
 
     #check input.
     input_response = guard.sanitize_input(user_description="I am a good boy")
