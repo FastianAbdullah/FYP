@@ -78,7 +78,7 @@ def moderate_chat(model,tokenizer,device,chat_template):
 if __name__ == "__main__":
     load_dotenv(dotenv_path=".env")
     hf_access_token = os.getenv(key="HF_LLAMA_GUARD")
-    setup = ModelSetup("meta-llama/LlamaGuard-7b", "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")
+    setup = ModelSetup("meta-llama/LlamaGuard-7b", hf_access_token)
     model,tokenizer = setup.setup_model_n_tokenizer()
     chat_template = [
         {'role':'user','content':f"Hello how are you"}
