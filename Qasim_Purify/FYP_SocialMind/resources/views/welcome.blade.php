@@ -6,8 +6,8 @@
   <meta name="description" content="Modern AI Landing HTML Template">
   <meta name="keywords" content="bootstrap 5, saas, landing page">
   <meta name="author" content="Themetags">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.3/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.3/ScrollTrigger.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.3/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.3/ScrollTrigger.min.js"></script> -->
   <title>Social Mind - Modern AI Landing HTML Template</title>
 
   <!-- Update the paths for stylesheets -->
@@ -17,6 +17,7 @@
   <link rel="icon" href="/img/favicon.png" type="image/png">
   <link rel="stylesheet" href="/css/plugins.min.css">
   <link rel="stylesheet" href="/css/style.min.css">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   @vite(['resources/js/app.js'])
 </head>

@@ -584,16 +584,16 @@ document.addEventListener("DOMContentLoaded", function () {
 		/**
 		 * GSAP Register Plugin
 		 */
-		gsap.registerPlugin(ScrollTrigger, SplitText);
+		// gsap.registerPlugin(ScrollTrigger, SplitText);
 		/**
 		 * GSAP ScrollTrigger Integration With Lenis
 		 */
-		const lenis = new Lenis();
-		lenis.on("scroll", ScrollTrigger.update);
-		gsap.ticker.add((time) => {
-			lenis.raf(time * 700);
-		});
-		gsap.ticker.lagSmoothing(0);
+		// const lenis = new Lenis();
+		// lenis.on("scroll", ScrollTrigger.update);
+		// gsap.ticker.add((time) => {
+		// 	lenis.raf(time * 700);
+		// });
+		// gsap.ticker.lagSmoothing(0);
 
 		/**
 		 * Animate Line 3D Rotation
