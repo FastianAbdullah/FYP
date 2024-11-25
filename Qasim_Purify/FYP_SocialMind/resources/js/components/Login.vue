@@ -78,7 +78,6 @@
 <script>
 import axios from 'axios';
 
-
 export default {
   data() {
     return {
@@ -95,13 +94,15 @@ export default {
     async login() {
       try {
         const response = await axios.post(`/login`, this.form);
-        console.log('Login successful:', response.data);
-      
-        localStorage.setItem('token', response.data.token);
+        const token = response.data.token;
+        
+        // Update Vuex login state and set token
+        this.$store.dispatch('login', token);
+
+        // Redirect to home after login
         this.$router.push('/');
       } catch (error) {
         if (error.response && error.response.data.errors) {
-         
           const errorMessages = Object.values(error.response.data.errors).flat();
           this.error = errorMessages.join(' ');
         } else {
