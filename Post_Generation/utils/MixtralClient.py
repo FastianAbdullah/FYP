@@ -1,89 +1,212 @@
-import requests
-from typing import Dict, Optional, List
+import os
+from typing import List, Dict, Optional
+from huggingface_hub import InferenceClient
+from dotenv import load_dotenv
+
 
 class MixtralClient:
-    def __init__(self, api_token: str):
-        self.api_token = api_token
-        self.api_url = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
-        self.headers = {"Authorization": f"Bearer {api_token}"}
-
-    def _format_prompt(self, messages: List[Dict[str, str]]) -> str:
-        """Format messages according to Mixtral's instruction format"""
-        prompt = "<s>"
-        for i, message in enumerate(messages):
-            if message['role'] == 'user':
-                prompt += f" [INST] {message['content']} [/INST]"
-            else:
-                prompt += f" {message['content']}"
-            if i < len(messages) - 1 and messages[i + 1]['role'] == 'user':
-                prompt += "</s>"
-        return prompt
-
-    def generate_response(self, 
-                         messages: List[Dict[str, str]], 
-                         max_length: int = 500, 
-                         temperature: float = 0.7, 
-                         top_p: float = 0.95) -> Dict:
-        """Generate a response from Mixtral model"""
-        formatted_prompt = self._format_prompt(messages)
+  
+    def __init__(self, model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1", token: Optional[str] = None):
+        load_dotenv()
         
-        payload = {
-            "inputs": formatted_prompt,
-            "parameters": {
-                "max_length": max_length,
-                "temperature": temperature,
-                "top_p": top_p,
-                "return_full_text": False
-            }
-        }
+        self.token = token or os.getenv("API_TOKEN")
+       
+        
+        if not self.token:
+            raise ValueError(
+                "No Hugging Face token found. "
+                "Please set HUGGINGFACE_TOKEN in .env or pass token directly."
+            )
+        
+        # Initialize inference client
+        self.client = InferenceClient(model=model, token=self.token)
+    
+    def generate_completion(self, messages: List[Dict[str, str]], max_tokens: int = 1000,temperature: float = 0.7) -> str:
 
         try:
-            response = requests.post(self.api_url, headers=self.headers, json=payload)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            return {"error": f"API request failed: {str(e)}"}
-    def extract_purpose_and_hashtags(self, user_text: str) -> Optional[Dict]:
-        messages = [
-            {
-                "role": "user",
-                "content": f"""Distill the core purpose of this text in one concise sentence:
-                    - Focus on the primary topic and main intent
-                    - Be clear and specific
-                    - Capture the essence in 15-20 words
-
-                    Provide 2-3 strategic hashtags that precisely target the content's core audience.
-
-                    Text to analyze: {user_text}
-
-                    IMPORTANT: Respond ONLY in this exact format:
-                    Purpose: [Your concise purpose sentence]
-                    Hashtag: [Your strategic hashtags]"""
-                }
-            ]
+            completion = self.client.chat.completions.create(
+                model=self.client.model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+            return completion.choices[0].message.content.strip()
         
-        try:
-            response = self.generate_response(messages, max_length=150, temperature=0.7)
-            
-            if isinstance(response, list) and response:
-                generated_text = response[0].get('generated_text', '').strip()
-                return generated_text
-            
-            return None
         except Exception as e:
-            print(f"Error extracting purpose and hashtags: {str(e)}")
-            return None
+            print(f"Error generating completion: {e}")
+            return ""
+    
+    def extract_purpose_and_hashtags(
+        self, 
+        response: str
+    ) -> Dict[str, List[str]]:
+        """
+        Extract purpose and hashtags from a structured response.
+        
+        Args:
+            response (str): Model's response text
+        
+        Returns:
+            Dict containing purpose and cleaned hashtags
+        """
+        try:
+            # Split and extract purpose
+            purpose = response.split('Purpose: ')[1].split('\nHashtags:')[0].strip()
+            
+            # Extract and clean hashtags
+            hashtag_section = response.split('Hashtags: ')[1].strip().split('#')
+            hashtags = [
+                tag.strip().lower().translate(str.maketrans('', '', ',.!?')) 
+                for tag in hashtag_section if tag.strip()
+            ]
+            
+            return {
+                "purpose": purpose,
+                "hashtags": hashtags
+            }
+        
+        except (IndexError, ValueError) as e:
+            print(f"Error extracting purpose and hashtags: {e}")
+            return {"purpose": "", "hashtags": []}
+    
+    def process_text(
+        self, 
+        text: str, 
+        prompt_template: Optional[str] = None
+    ) -> Dict[str, List[str]]:
+        """
+        Comprehensive text processing method.
+        
+        Args:
+            text (str): Input text to process
+            prompt_template (str, optional): Custom prompt template
+        
+        Returns:
+            Dict with purpose and hashtags
+        """
+        # Default prompt template if not provided
+        if not prompt_template:
+            prompt_template = """Distill the core purpose of this text in one concise sentence:
+            - Focus on the primary topic and main intent
+            - Be clear and specific
+            - Capture the essence in 15-20 words
 
+            Provide 2-3 strategic hashtags that precisely target the content's core audience.
+             - Hashtags should be 1-2 words each
+             - Use commonly recognized terms and avoid long phrases
+            - Ensure each hashtag is relevant and impactful
+
+            Text to analyze: {text}
+
+            IMPORTANT: Respond ONLY in this exact format:
+            Purpose: [Your concise purpose sentence]
+            Hashtags: [#hashtag1 #hashtag2 #hashtag3]"""
+        
+        # Prepare messages
+        messages = [{
+            "role": "user",
+            "content": prompt_template.format(text=text)
+        }]
+
+       
+        # Generate and process completion
+        response = self.generate_completion(messages)
+        return self.extract_purpose_and_hashtags(response)
+
+    def set_purpose_descriptions(self,descriptions,purpose):
+        print(descriptions)
+        print(purpose)
+        
+    def generate_optimized_response(self, purpose: str, descriptions: List[Dict[str, str]]) -> str:
+        """
+        Generate an optimized response based on purpose and optionally analyzed top-performing descriptions.
+
+        Args:
+            purpose (str): Extracted purpose of the user's query.
+            descriptions (List[Dict[str, str]]): List of top-performing post descriptions.
+
+        Returns:
+            str: Optimized response generated by the LLM.
+        """
+        if not descriptions:
+            # Template for when descriptions are not available
+    
+            prompt_template_no_descriptions = """
+            Generate an engaging and optimized post based solely on the following purpose. The response should stand out while aligning with the intended goal.
+
+            Purpose: {purpose}
+
+            IMPORTANT:
+            - Create a fresh, innovative post that resonates with the intended audience.
+            - Use an emotionally engaging tone, concise structure, and persuasive language.
+            - Incorporate trends, buzzwords, and relevant themes to enhance performance.
+            - Include a strong call-to-action to encourage interaction (e.g., likes, shares, or comments).
+            - Suggest 7-8 trending and purpose-aligned hashtags to boost reach.
+            - Ensure brevity (e.g., 250-400 characters) for optimal readability.
+            """
+
+            # Generate the response using the purpose-focused prompt
+            prompt = prompt_template_no_descriptions.format(purpose=purpose)
+        else:
+            # Analyze descriptions for keywords, emojis, and tone
+            analyzed_descriptions = []
+            for desc in descriptions:
+                caption = desc['caption']
+                analyzed_descriptions.append({
+                    "caption": caption.strip(),
+                    "length": len(caption),
+                })
+
+            # Format captions for examples
+            examples = "\n".join([f"- {desc['caption']}" for desc in analyzed_descriptions])
+
+            # Template for when descriptions are provided
+            prompt_template_with_descriptions = """
+            Create an engaging and optimized post based on the following purpose and insights from successful examples. The response should stand out while aligning with the intended goal.
+
+            Purpose: {purpose}
+
+            Examples of successful posts:
+            {examples}
+
+            IMPORTANT:
+            - Draw inspiration from the tone, structure, and trends in the examples, but do not copy or overly imitate them.
+            - Adapt the emotional tone and core themes to fit the purpose uniquely.
+            - Use concise, compelling language with clear calls-to-action to drive interaction.
+            - Incorporate fresh ideas while staying relevant to the trends highlighted in the examples.
+            - Include 7-8 trending hashtags relevant to the purpose, and ensure brevity (e.g., 250-300 characters).
+            """
+
+            # Generate the response using the full prompt
+            prompt = prompt_template_with_descriptions.format(
+                purpose=purpose,
+                examples=examples,
+            )
+
+        # Generate the optimized response
+        messages = [{"role": "user", "content": prompt}]
+        optimized_response = self.generate_completion(messages)
+       
+
+        return optimized_response
+
+
+
+     
 # Example usage
-if __name__ == "__main__":
-    API_TOKEN = "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"
-    client = MixtralClient(API_TOKEN)
+def main():
+    # Initialize client
+    mixtral_client = MixtralClient()
     
     # Example text
-    test_text = "Launched a community initiative to provide free coding workshops for underprivileged youth. Technology can be a powerful tool for empowerment."
+    user_text = "Completed my first marathon today! From couch potato to marathon finisher in 18 months of dedicated training and self-transformation"
     
-    # Extract purpose and hashtags
-    result = client.extract_purpose_and_hashtags(test_text)
+    # Process text
+    result = mixtral_client.process_text(user_text)
     
-    print("Analysis Result:")
-    print(result)
+    # Print results
+    print("Purpose:", result['purpose'])
+    print("Hashtags:", result['hashtags'])
+
+if __name__ == "__main__":
+    main()

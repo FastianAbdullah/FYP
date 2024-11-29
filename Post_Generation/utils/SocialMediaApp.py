@@ -6,6 +6,7 @@ from utils.FacebookManager import FacebookManager
 from utils.InstagramManager import InstagramManager
 from utils.ContentAnalyzer import ContentAnalyzer
 from utils.MixtralClient import MixtralClient
+
 from dotenv import load_dotenv
 import os
 
@@ -30,8 +31,9 @@ class SocialMediaApp:
             redirect_uri='https://localhost:8502/'
         )
         self.post_history = UserPostHistory()
-        self.mixtral_client = MixtralClient(get_api_token())
-    
+        self.mixtral_client = MixtralClient()
+        self.descriptions = {}
+
     def setup_page(self):
         """Configure the Streamlit page"""
         st.set_page_config(**self.config)
@@ -66,14 +68,14 @@ class SocialMediaApp:
         Returns:
             dict: Comprehensive analysis including purpose, hashtags, and per-hashtag insights
         """
-        # Step 1: Generate purpose and hashtags using LLM
-        llm_result = self.mixtral_client.extract_purpose_and_hashtags(user_text)
-        
-        purpose = llm_result.split('Purpose: ')[1].split('\nHashtag:')[0].strip()
-        hashtags = llm_result.split('Hashtag: ')[1].strip().split('#')
-        hashtags = [tag.strip() for tag in hashtags if tag.strip()]
-        
-        # Step 2: Fetch and analyze posts for each hashtag
+
+        result = self.mixtral_client.process_text(user_text)
+    
+      
+        purpose = result['purpose']
+        hashtags = result['hashtags']
+        all_descriptions = []
+    
         analyzer = ContentAnalyzer(st.session_state.access_token)
         hashtag_insights = {}
         
@@ -86,7 +88,8 @@ class SocialMediaApp:
                 tag, 
                 limit=50
             )
-            
+          
+        
             # Analyze posts for this specific hashtag
             tag_analysis = analyzer.analyze_descriptions(posts)
             
@@ -102,14 +105,17 @@ class SocialMediaApp:
                 } 
                 for post in tag_analysis['top_performing_posts']
             ]
-            
-            # Store insights for this hashtag
+            all_descriptions.extend(tag_analysis['top_performing_posts'])           
             hashtag_insights[tag] = tag_analysis
+
+        optimized_response = self.mixtral_client.generate_optimized_response(purpose, all_descriptions)
         
         return {
             'purpose': purpose,
             'hashtags': hashtags,
-            'hashtag_insights': hashtag_insights
+            'hashtag_insights': hashtag_insights,
+            'optimized_response': optimized_response,
+        
         }
     
     def show_llm_content_interface(self):
@@ -136,6 +142,9 @@ class SocialMediaApp:
                         # Display purpose
                         st.subheader("🎯 Purpose")
                         st.write(result['purpose'])
+
+                        st.subheader("🌟 Optimized Content Response")
+                        st.write(result['optimized_response'])
                         
                         # Display hashtags and their insights
                         st.subheader("🏷️ Hashtag Insights")
@@ -146,6 +155,7 @@ class SocialMediaApp:
                             # Top performing posts for this hashtag
                             st.markdown("#### 🏆 Top Performing Posts")
                             for idx, post in enumerate(tag_analysis['top_performing_posts'], 1):
+
                                 st.markdown(f"**Post #{idx} - Engagement Score: {post['engagement_score']:,}**")
                                 st.markdown("**Caption:**")
                                 st.text(post['caption'])
