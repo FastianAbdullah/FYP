@@ -3,6 +3,7 @@ from utils.SocialMediaApp import SocialMediaApp
 
 def main():
     app = SocialMediaApp()
+    
     app.run()
 
 if __name__ == "__main__":

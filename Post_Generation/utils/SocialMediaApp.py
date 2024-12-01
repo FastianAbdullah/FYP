@@ -5,8 +5,16 @@ from utils.UserPostHistory import UserPostHistory
 from utils.FacebookManager import FacebookManager
 from utils.InstagramManager import InstagramManager
 from utils.ContentAnalyzer import ContentAnalyzer
+from utils.MixtralClient import MixtralClient
+
+from dotenv import load_dotenv
+import os
 
 
+load_dotenv(dotenv_path='./utils/.env')
+
+def get_api_token():
+    return os.getenv('API_TOKEN')
 
 #Main StreamLit SocialMediaApp.
 class SocialMediaApp:
@@ -23,6 +31,8 @@ class SocialMediaApp:
             redirect_uri='https://localhost:8502/'
         )
         self.post_history = UserPostHistory()
+        self.mixtral_client = MixtralClient()
+        self.descriptions = {}
 
     def setup_page(self):
         """Configure the Streamlit page"""
@@ -48,12 +58,158 @@ class SocialMediaApp:
         else:
             self.show_login_interface()
 
+    def analyze_content_with_llm(self, user_text):
+        """
+        Analyze content using LLM and generate comprehensive insights
+        
+        Args:
+            user_text (str): Input text describing content/purpose
+        
+        Returns:
+            dict: Comprehensive analysis including purpose, hashtags, and per-hashtag insights
+        """
+
+        result = self.mixtral_client.process_text(user_text)
+    
+      
+        purpose = result['purpose']
+        hashtags = result['hashtags']
+        all_descriptions = []
+    
+        analyzer = ContentAnalyzer(st.session_state.access_token)
+        hashtag_insights = {}
+        
+        for tag in hashtags:
+            print(f"Analyzing hashtag: {tag}")
+            
+            # Fetch posts for this specific hashtag
+            posts = analyzer.get_top_posts(
+                st.session_state.ig_user_id, 
+                tag, 
+                limit=50
+            )
+          
+        
+            # Analyze posts for this specific hashtag
+            tag_analysis = analyzer.analyze_descriptions(posts)
+            
+            # Adjust top performing posts to show more details
+            tag_analysis['top_performing_posts'] = [
+                {
+                    'caption': post['caption'],
+                    'likes': post['likes'],
+                    'comments': post['comments'],
+                    'engagement_score': post['engagement_score'],
+                    'permalink': post['permalink'],
+                    'hashtag': tag  
+                } 
+                for post in tag_analysis['top_performing_posts']
+            ]
+            all_descriptions.extend(tag_analysis['top_performing_posts'])           
+            hashtag_insights[tag] = tag_analysis
+
+        optimized_response = self.mixtral_client.generate_optimized_response(purpose, all_descriptions)
+        
+        return {
+            'purpose': purpose,
+            'hashtags': hashtags,
+            'hashtag_insights': hashtag_insights,
+            'optimized_response': optimized_response,
+        
+        }
+    
+    def show_llm_content_interface(self):
+        """
+        Interface for LLM-powered content generation and analysis
+        """
+        st.subheader("🤖 AI-Powered Content Insights")
+        
+        if not st.session_state.ig_user_id:
+            st.warning("Please select an Instagram account first")
+            return
+        
+        user_description = st.text_area(
+            "Describe your content or purpose", 
+            placeholder="Example: Developing a community initiative for tech education..."
+        )
+        
+        if st.button("Generate Content Insights"):
+            if user_description:
+                with st.spinner("Generating AI insights..."):
+                    try:
+                        result = self.analyze_content_with_llm(user_description)
+                        
+                        # Display purpose
+                        st.subheader("🎯 Purpose")
+                        st.write(result['purpose'])
+
+                        st.subheader("🌟 Optimized Content Response")
+                        st.write(result['optimized_response'])
+                        
+                        # Display hashtags and their insights
+                        st.subheader("🏷️ Hashtag Insights")
+                        
+                        for tag, tag_analysis in result['hashtag_insights'].items():
+                            st.markdown(f"### Hashtag: #{tag}")
+                            
+                            # Top performing posts for this hashtag
+                            st.markdown("#### 🏆 Top Performing Posts")
+                            for idx, post in enumerate(tag_analysis['top_performing_posts'], 1):
+
+                                st.markdown(f"**Post #{idx} - Engagement Score: {post['engagement_score']:,}**")
+                                st.markdown("**Caption:**")
+                                st.text(post['caption'])
+                                st.markdown(f"""
+                                **Stats:**
+                                - Likes: {post['likes']:,}
+                                - Comments: {post['comments']:,}
+                                - Total Engagement: {post['engagement_score']:,}
+                                """)
+                                if post['permalink']:
+                                    st.markdown(f"[View Post]({post['permalink']})")
+                                st.markdown("---")  # Separator between posts
+                            
+                            # Hashtag-specific analysis
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.markdown("#### 📊 Content Analysis")
+                                st.write(f"Average caption length: {tag_analysis['avg_length']:.0f} characters")
+                                
+                                st.write("Top phrases:")
+                                for phrase, count in tag_analysis['common_phrases']:
+                                    st.write(f"- {phrase} ({count} times)")
+                                
+                                st.write("\nMost used emojis:")
+                                for emoji, count in tag_analysis['emoji_usage'].items():
+                                    st.write(f"- {emoji}: {count} times")
+                            
+                            with col2:
+                                st.markdown("#### 🔍 Structure Analysis")
+                                for key, value in tag_analysis['structure_patterns'].items():
+                                    st.write(f"- {key.replace('_', ' ').title()}: {value:.1f}%")
+                                
+                                st.write("\nCommon words:")
+                                for word, count in tag_analysis['common_words']:
+                                    st.write(f"- {word} ({count} times)")
+                            
+                            st.markdown("---")  # Separator between hashtags
+                        
+                        # Overall generated hashtags
+                        st.subheader("📝 Generated Hashtags")
+                        st.write(", ".join(result['hashtags']))
+                    
+                    except Exception as e:
+                        st.error(f"Error generating insights: {e}")
+            else:
+                st.warning("Please provide a description of your content")
+
     def show_logged_in_interface(self):
         """Show interface for logged-in users"""
         st.success("You are logged in!")
         st.write(f"Access token: {st.session_state.access_token[:10]}...")
         
-        tabs = st.tabs(["Post Content", "Trending Hashtags", "Description Analysis", "Post History"])
+        tabs = st.tabs(["Post Content", "Trending Hashtags", "Description Analysis", "Post History", "AI Content Insights"])
         
         with tabs[0]:
             self.show_posting_interface()
@@ -66,6 +222,9 @@ class SocialMediaApp:
         
         with tabs[3]:
             self.show_history_interface()
+
+        with tabs[4]:
+            self.show_llm_content_interface()
 
     def show_posting_interface(self):
         """Show the content posting interface"""
